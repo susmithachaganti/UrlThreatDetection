@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreatGuard AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="navbar">
+    <div class="logo">
+        <span class="shield-icon">🛡️</span>
+        <span class="brand-name">ThreatGuard AI</span>
+    </div>
+    {% if result %}
+    <a href="/" class="nav-link">← Back to Home</a>
+    {% else %}
+    <div class="tagline">AI-Powered URL Security</div>
+    {% endif %}
+</header>
+
+<main class="container">
+
+    <section class="hero {% if result %}compact-hero{% endif %}">
+        {% if not result %}
+            <div class="pill-badge">
+                <span class="icon">🛡</span> AI-Powered Threat Detection
+            </div>
+            <h1>Protect Yourself from <br><span class="highlight-text">Malicious Links</span></h1>
+            <p class="subtitle">Instantly analyze any URL for phishing, malware, scams, and other cyber threats. Get clear risk assessments and recommendations before you click.</p>
+        {% endif %}
+
+        <form method="POST" class="scan-box">
+            <div class="input-wrapper">
+                <span class="search-icon">🔗</span>
+                <input type="text" name="url"
+                       placeholder="Enter a URL to analyze (e.g., https://example.com)"
+                       required autocomplete="off"
+                       value="{{ request.form['url'] if request.form['url'] else '' }}">
+            </div>
+            <button type="submit">Analyze URL</button>
+        </form>
+
+        {% if not result %}
+        <p class="micro-copy">Our Hybrid AI Analyzes URL Features Using ML + DL For Threat Detection.</p>
+        {% endif %}
+    </section>
+
+    {% if result %}
+    <section class="dashboard">
+
+        <div class="url-header">
+    <span class="label">Analyzed URL</span>
+    <div class="url-text">{{ request.form['url'] }}</div>
+
+    <div style="display:flex; gap:10px;">
+        <form method="POST" action="/download-report">
+            <input type="hidden" name="url" value="{{ request.form['url'] }}">
+            <input type="hidden" name="risk_score" value="{{ result.risk_score }}">
+            <input type="hidden" name="category" value="{{ result.category }}">
+            <input type="hidden" name="confidence"
+                   value="{{ 90 if result.risk_score < 30 else 75 if result.risk_score < 70 else 60 }}">
+            <input type="hidden" name="recommendation" value="{{ result.recommendation }}">
+            <input type="hidden" name="ml_score" value="{{ result.ml_score | default(0) }}">
+            <input type="hidden" name="dl_score" value="{{ result.dl_score | default(0) }}">
+            <input type="hidden" name="risk_score" value="{{ result.risk_score | default(0) }}">
+            {% for reason in result.explanation %}
+              <input type="hidden" name="explanation" value="{{ reason }}">
+            {% endfor %}
+
+            <button type="submit" class="pdf-btn">
+                📄 Report
+            </button>
+        </form>
+
+        <a href="/" class="new-scan-btn">↻ New Scan</a>
+    </div>
+</div>
+
+
+        <div class="top-grid">
+            <div class="card score-card">
+                <div class="status-badge
+                    {% if 'SAFE' in result.category %} status-safe
+                    {% elif 'SUSPICIOUS' in result.category %} status-suspicious
+                    {% else %} status-dangerous {% endif %}">
+                    {% if 'SAFE' in result.category %} 🛡 Safe
+                    {% elif 'SUSPICIOUS' in result.category %} ⚠️ Suspicious
+                    {% else %} ⨯ Dangerous {% endif %}
+                </div>
+
+                <div class="circle-container">
+                    <svg viewBox="0 0 160 160">
+                        <circle class="bg" cx="80" cy="80" r="70"></circle>
+                        <circle class="progress
+                            {% if 'SAFE' in result.category %} stroke-safe
+                            {% elif 'SUSPICIOUS' in result.category %} stroke-suspicious
+                            {% else %} stroke-dangerous {% endif %}"
+                            cx="80" cy="80" r="70"
+                            style="stroke-dashoffset: {{ 440 - (440 * result.risk_score / 100) }};">
+                        </circle>
+                    </svg>
+                    <div class="score-text">
+                        <span class="number">{{ result.risk_score|int }}</span>
+                        <span class="label">Risk Score</span>
+                    </div>
+                </div>
+
+                <div class="risk-level">
+                    {% if result.risk_score > 75 %} High Risk Level
+                    {% elif result.risk_score > 25 %} Moderate Risk
+                    {% else %} Low Risk Level {% endif %}
+                </div>
+            </div>
+
+            <div class="card analysis-card">
+                <h3>Threat Analysis</h3>
+
+                <div class="section-label">Detected Threats</div>
+                <div class="threat-badges">
+                    {% if result.risk_score > 50 %}
+                        <span class="pill pill-red">⚠️ Phishing</span>
+                        <span class="pill pill-grey">🌐 Suspicious Domain</span>
+                        <span class="pill pill-red">DATA-THEFT</span>
+                    {% elif result.risk_score > 20 %}
+                        <span class="pill pill-orange">⚠️ Unusual Pattern</span>
+                        <span class="pill pill-grey">Unknown Reputation</span>
+                    {% else %}
+                        <span class="pill pill-green">✅ Verified Domain</span>
+                        <span class="pill pill-grey">🔒 Valid SSL</span>
+                    {% endif %}
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section-label">Recommended Action</div>
+                <div class="action-box
+                    {% if 'SAFE' in result.category %} action-safe
+                    {% elif 'SUSPICIOUS' in result.category %} action-suspicious
+                    {% else %} action-dangerous {% endif %}">
+                    {{ result.recommendation }}
+                </div>
+            </div>
+            <div class="divider"></div>
+
+<div class="section-label">Model-wise Risk Assessment</div>
+
+<ul class="analysis-list">
+    <li><strong>ML Model (XGBoost):</strong> {{ result.ml_score }}%</li>
+    <li><strong>DL Model:</strong> {{ result.dl_score }}%</li>
+</ul>
+
+<div class="hybrid-box">
+    <strong>Hybrid Risk Calculation</strong><br>
+    Final Score =
+    (0.6 × {{ result.ml_score }}) +
+    (0.4 × {{ result.dl_score }}) =
+    <strong>{{ result.risk_score }}%</strong>
+</div>
+
+        </div>
+
+        <div class="tech-section">
+            <h3>📄 Technical Details</h3>
+            <div class="tech-grid">
+                <div class="tech-card">
+                    <div class="tech-icon">🌐</div>
+                    <div class="tech-content">
+                        <strong>Domain Trust</strong>
+                        <p>{{ result.consequence }}</p>
+                    </div>
+                </div>
+
+                <div class="tech-card">
+                    <div class="tech-icon">🔒</div>
+                    <div class="tech-content">
+                        <strong>SSL Certificate</strong>
+                        <p>
+                            {% if 'https' in request.form['url'] %}
+                                <span style="color:#059669">Valid HTTPS</span>. Connection is encrypted.
+                            {% else %}
+                                <span style="color:#dc2626">Missing/Invalid</span>. Connection is insecure.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+
+                <div class="tech-card">
+                    <div class="tech-icon">➔</div>
+                    <div class="tech-content">
+                        <strong>Redirect Chain</strong>
+                        <p>
+                            {% if result.risk_score > 50 %}
+                            Suspicious redirect pattern detected masking true destination.
+                            {% else %}
+                            Direct link. No suspicious redirects detected.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                {% if result.explanation %}
+                       <div class="tech-card">
+                        <div class="tech-icon">🧠</div>
+                        <div class="tech-content">
+                        <strong>AI Explanation (Why this URL was flagged)</strong>
+                         <ul style="margin:8px 0 0 18px; padding:0; font-size:13px; color:#475569;">
+                          {% for reason in result.explanation %}
+                            <li>{{ reason }}</li>
+                          {% endfor %}
+                        </ul>
+                       </div>
+                    </div>
+                {% endif %}
+
+                <div class="tech-card">
+                    <div class="tech-icon">📄</div>
+                    <div class="tech-content">
+                        <strong>Content Analysis</strong>
+                        <p>
+                            {% if result.risk_score > 50 %}
+                            Page structure resembles known phishing templates.
+                            {% else %}
+                            Standard page structure. No malicious code found.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% else %}
+    <section class="features">
+        <div class="feature-card">
+            <div class="f-icon">⚡</div>
+            <h3>Instant Analysis</h3>
+            <p>Get threat assessments in under a second using advanced AI models.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">🛡️</div>
+            <h3>Comprehensive Detection</h3>
+            <p>Combines XGBoost (ML) stability with Deep Learning pattern recognition.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">👁️</div>
+            <h3>Clear Explanations With AI</h3>
+            <p>Understand exactly why a URL might be dangerous with detailed reports.</p>
+        </div>
+    </section>
+    {% endif %}
+
+</main>
+
+<footer>
+    ThreatGuard AI - Protecting users from getting scammed
+</footer>
+<!-- ADVANCED SCANNING OVERLAY -->
+<div id="scanOverlay">
+  <div class="scan-glass">
+    
+    <div class="scan-ring">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="54"></circle>
+      </svg>
+      <div class="scan-shield">🛡️</div>
+    </div>
+
+    <h2>Analyzing URL...</h2>
+
+    <ul class="scan-steps">
+      <li id="step1">Extracting URL features...</li>
+      <li id="step2">Running XGBoost (ML) model...</li>
+      <li id="step3">Running Deep Learning model...</li>
+      <li id="step4">Computing hybrid fusion score...</li>
+    </ul>
+
+  </div>
+</div>
+
+<script>
+  const form = document.querySelector(".scan-box");
+  const overlay = document.getElementById("scanOverlay");
+
+  const steps = [
+    document.getElementById("step1"),
+    document.getElementById("step2"),
+    document.getElementById("step3"),
+    document.getElementById("step4")
+  ];
+
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      overlay.style.display = "flex";
+      steps.forEach(s => s.classList.remove("active"));
+
+      let i = 0;
+      const interval = setInterval(() => {
+        if (steps[i]) steps[i].classList.add("active");
+        i++;
+        if (i >= steps.length) clearInterval(interval);
+      }, 700);
+
+      setTimeout(() => {
+        form.submit();
+      }, 3200);
+    });
+  }
+</script>
+
+</body>
+</html>
