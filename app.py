@@ -108,22 +108,26 @@ def brand_impersonation(domain):
     return False
 
 def explain_ml(input_df, importance_df, top_k=3):
-    reasons = []
+    explanations = []
+
+    if importance_df is None or importance_df.empty:
+        return ["Model explanation unavailable"]
 
     for feature in input_df.columns:
-        val = input_df[feature].values[0]
-        if val > 0:
-            row = importance_df[importance_df["feature"] == feature]
-            if not row.empty:
-                reasons.append((feature, row["importance"].values[0]))
+        try:
+            val = input_df[feature].values[0]
+            if val > 0 and feature in importance_df["feature"].values:
+                explanations.append(
+                    FEATURE_MEANING.get(feature, feature)
+                )
+        except Exception:
+            continue
 
-    reasons = sorted(reasons, key=lambda x: x[1], reverse=True)
+    if not explanations:
+        return ["No abnormal URL patterns detected"]
 
-    explanations = []
-    for f, _ in reasons[:top_k]:
-        explanations.append(FEATURE_MEANING.get(f, f))
+    return explanations[:top_k]
 
-    return explanations
 
 # ================= MAIN ROUTE =================
 @app.route("/", methods=["GET", "POST"])
@@ -198,13 +202,15 @@ def index():
                 }
 
         except Exception as e:
-            result = {
-                "risk_score": 0,
-                "category": "⚠️ ERROR",
-                "consequence": str(e),
-                "recommendation": "Check backend logs.",
-                "explanation": []
-            }
+                result = {
+                    "risk_score": 0,
+                    "ml_score": "N/A",
+                    "dl_score": "N/A",
+                    "category": "⚠️ ERROR",
+                    "consequence": "Prediction failed due to backend limitation.",
+                    "recommendation": "Try again or check deployment logs.",
+                    "explanation": ["Model execution failed"]
+                }
 
     return render_template("index.html", result=result)
 
